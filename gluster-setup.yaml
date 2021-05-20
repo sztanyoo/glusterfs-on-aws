@@ -10,38 +10,38 @@
         name:
           - wget
         update_cache: yes
-#     - name: Install centos-release-gluster
-#       yum:
-#         name:
-#           - centos-release-gluster
-#         update_cache: yes
-#     - name: Install epel-release
-#       yum:
-#         name:
-#           - epel-release
-#         update_cache: yes
-#     - name: Install GlusterFS
-#       yum:
-#         name:
-#           - glusterfs-server
-#         update_cache: yes
-#     - name: Stand & enable service GlusterFS
-#       ansible.builtin.systemd:
-#         name: glusterd
-#         enabled: yes
-#         state: started
-#     # TODO: what if we use another user?
-#     - name: Permit root login via ssh for heketi
-#       lineinfile:
-#         path: /etc/ssh/sshd_config
-#         line: PermitRootLogin yes
-#     # TODO: Can we go with selinux?
-#     - name: Disable SELINUX
-#       lineinfile:
-#         path: /etc/selinux/config
-#         line: SELINUX=disabled
-#     - name: Disable SELINUX
-#       shell: setenforce 0
+    - name: Install centos-release-gluster
+      yum:
+        name:
+          - centos-release-gluster
+        update_cache: yes
+    - name: Install epel-release
+      yum:
+        name:
+          - epel-release
+        update_cache: yes
+    - name: Install GlusterFS
+      yum:
+        name:
+          - glusterfs-server
+        update_cache: yes
+    - name: Stand & enable service GlusterFS
+      ansible.builtin.systemd:
+        name: glusterd
+        enabled: yes
+        state: started
+    # TODO: what if we use another user?
+    - name: Permit root login via ssh for heketi
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: PermitRootLogin yes
+    # TODO: Can we go with selinux?
+    - name: Disable SELINUX
+      lineinfile:
+        path: /etc/selinux/config
+        line: SELINUX=disabled
+    - name: Disable SELINUX
+      shell: setenforce 0
 
 - name: Configure GlusterFS on lead node
   hosts:
