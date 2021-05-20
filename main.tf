@@ -23,7 +23,7 @@ resource "aws_instance" "glusternode" {
   ami           = "ami-00e87074e52e6c9f9"
   instance_type = "t3.micro"
   key_name = "glusterec2user"
-  security_groups = [ "allow_ssh", "allow_gluster", "allow_outgoing" ]
+  security_groups = [ "allow_all", "allow_outgoing" ]
 
 
   tags = {
@@ -56,6 +56,24 @@ resource "aws_security_group" "allow_ssh" {
 }
 
 # TODO: restrict from peer vpc
+
+resource "aws_security_group" "allow_all" {
+  name        = "allow_all"
+  description = "Allow Gluster inbound traffic"
+  ingress {
+    description      = "NFS from everywhere"
+    from_port        = 1
+    to_port          = 65535
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "allow_all"
+  }
+}
+
 resource "aws_security_group" "allow_gluster" {
   name        = "allow_gluster"
   description = "Allow Gluster inbound traffic"
@@ -148,6 +166,7 @@ data "template_file" "ansible_inventory" {
   vars = {
     host = "${aws_instance.glusternode[count.index].tags["Name"]}"
     public_ip = "${aws_instance.glusternode[count.index].public_ip}"
+    ipv4_dns = "${aws_instance.glusternode[count.index].public_dns}"
   }
 }
 
