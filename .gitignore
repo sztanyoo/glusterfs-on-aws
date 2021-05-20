@@ -1,0 +1,5 @@
+id_rsa*
+terraform.tfstate*
+gluster_inventory
+gluster_ssh_config
+.terraform*

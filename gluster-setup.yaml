@@ -1,0 +1,67 @@
+---
+- name: Install GlusterFS on all hosts
+  hosts:
+    - gluster_members
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Install wget
+      yum:
+        name:
+          - wget
+        update_cache: yes
+#     - name: Install centos-release-gluster
+#       yum:
+#         name:
+#           - centos-release-gluster
+#         update_cache: yes
+#     - name: Install epel-release
+#       yum:
+#         name:
+#           - epel-release
+#         update_cache: yes
+#     - name: Install GlusterFS
+#       yum:
+#         name:
+#           - glusterfs-server
+#         update_cache: yes
+#     - name: Stand & enable service GlusterFS
+#       ansible.builtin.systemd:
+#         name: glusterd
+#         enabled: yes
+#         state: started
+#     # TODO: what if we use another user?
+#     - name: Permit root login via ssh for heketi
+#       lineinfile:
+#         path: /etc/ssh/sshd_config
+#         line: PermitRootLogin yes
+#     # TODO: Can we go with selinux?
+#     - name: Disable SELINUX
+#       lineinfile:
+#         path: /etc/selinux/config
+#         line: SELINUX=disabled
+#     - name: Disable SELINUX
+#       shell: setenforce 0
+
+- name: Configure GlusterFS on lead node
+  hosts:
+    - gluster_members[0]
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Add gluster2 and gluster3 to gluster1 peers
+      shell: "gluster peer probe {{ item }}"
+      with_items:
+        - "{{ hostvars[groups['gluster_members'][1]].vars.public_ip }}"
+        - "{{ hostvars[groups['gluster_members'][2]].vars.public_ip }}"
+
+- name: Configure GlusterFS on other node
+  hosts:
+    - gluster_members[1]
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Add gluster1 to gluster2
+      shell: "gluster peer probe {{ item }}"
+      with_items:
+        - "{{ hostvars[groups['gluster_members'][0]].vars.public_ip }}"
