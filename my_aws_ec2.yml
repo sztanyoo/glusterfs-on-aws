@@ -1,0 +1,12 @@
+---
+plugin: aws_ec2
+aws_profile: default
+regions:
+  - us-east-1
+filters:
+  tag:Role:
+    - glusternode
+  instance-state-name : running
+keyed_groups:
+  - prefix: role
+    key: tags['Role']

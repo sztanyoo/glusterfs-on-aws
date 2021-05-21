@@ -1,0 +1,116 @@
+---
+- name: Create EC2 hosts
+  hosts:
+    - localhost
+  gather_facts: no
+  become: no
+  tasks:
+    - amazon.aws.ec2:
+        key_name: glusterec2user
+        group:
+          - allow_all
+          - allow_outgoing
+        instance_type: t3.micro
+        image: ami-00e87074e52e6c9f9
+        wait: yes
+        wait_timeout: 500
+        count: 3
+        instance_tags:
+          Role: glusternode
+        monitoring: yes
+        vpc_subnet_id: subnet-90e1849e
+        assign_public_ip: yes
+        region: us-east-1
+      register: ec2
+    - name: Wait for SSH to come up
+      delegate_to: "{{ item.public_dns_name }}"
+      wait_for_connection:
+        delay: 10
+        timeout: 320
+      loop: "{{ ec2.instances }}"
+
+    - meta: refresh_inventory
+
+- name: Install GlusterFS on all hosts
+  hosts:
+    - role_glusternode
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Install wget
+      yum:
+        name:
+          - wget
+        update_cache: yes
+    - name: Install centos-release-gluster
+      yum:
+        name:
+          - centos-release-gluster
+        update_cache: yes
+    - name: Install epel-release
+      yum:
+        name:
+          - epel-release
+        update_cache: yes
+    - name: Install GlusterFS
+      yum:
+        name:
+          - glusterfs-server
+        update_cache: yes
+    - name: Stand & enable service GlusterFS
+      ansible.builtin.systemd:
+        name: glusterd
+        enabled: yes
+        state: started
+    # TODO: what if we use another user?
+    - name: Permit root login via ssh for heketi
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: PermitRootLogin yes
+    # TODO: Can we go with selinux?
+    - name: Disable SELINUX
+      lineinfile:
+        path: /etc/selinux/config
+        line: SELINUX=disabled
+    - name: Disable SELINUX
+      shell: setenforce 0
+    - name: Create directory for test volume
+      file:
+        path: /data/brick1/gv0
+        state: directory
+        recurse: yes
+
+- name: Configure GlusterFS on lead node
+  hosts:
+    - role_glusternode[0]
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Add gluster2 and gluster3 to gluster1 peers
+      shell: "gluster peer probe {{ item }}"
+      with_items:
+        - "{{ hostvars[groups['role_glusternode'][1]].public_dns_name }}"
+        - "{{ hostvars[groups['role_glusternode'][2]].public_dns_name }}"
+
+- name: Configure GlusterFS on other node
+  hosts:
+    - role_glusternode[1]
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Add gluster1 to gluster2
+      shell: "gluster peer probe {{ item }}"
+      with_items:
+        - "{{ hostvars[groups['role_glusternode'][0]].public_dns_name }}"
+
+
+- name: Create and start test volume on lead node
+  hosts:
+    - role_glusternode[0]
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Create test volume
+      shell: "gluster volume create gv0 {{ hostvars[groups['role_glusternode'][0]].public_dns_name }}:/data/brick1/gv0 {{ hostvars[groups['role_glusternode'][1]].public_dns_name }}:/data/brick1/gv0 {{ hostvars[groups['role_glusternode'][2]].public_dns_name }}:/data/brick1/gv0 force"
+    - name: Start test volume
+      shell: "gluster volume start gv0"
